@@ -21,15 +21,9 @@
 <div class="flex flex-col h-dvh max-h-dvh">
 <header class="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-gray-200">
   <div class="mx-auto w-full max-w-none px-4 py-3 grid grid-cols-3 items-center">
-    <button id="sidebarBtn" class="h-8 w-8 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-[.99] transition flex items-center justify-center" title="Assistants">
-      <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
-    </button>
+    <button id="sidebarBtn" class="h-8 w-8 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-[.99] transition flex items-center justify-center" title="Assistants"><i data-lucide="panel-left" class="h-5 w-5"></i></button>
     <button id="settingsBtnTop" class="justify-self-center h-8 w-8 rounded-full bg-gray-200 text-gray-900 flex items-center justify-center hover:bg-gray-300 active:scale-[.99] transition" title="Assistant settings">🤖</button>
-    <div class="justify-self-end">
-      <button id="historyBtn" class="h-8 w-8 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-[.99] transition flex items-center justify-center" title="History">
-        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
-      </button>
-    </div>
+    <div class="justify-self-end"><button id="historyBtn" class="h-8 w-8 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-[.99] transition flex items-center justify-center" title="History"><i data-lucide="panel-right" class="h-5 w-5"></i></button></div>
   </div>
 </header>
 <main id="chat" class="flex-1 overflow-y-auto no-scrollbar">
@@ -55,11 +49,44 @@
   <div class="p-3 border-b text-sm font-medium flex items-center justify-between"><span>History</span><button id="closeHistory" class="p-1 rounded hover:bg-gray-100" aria-label="Close"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
   <div id="historyList" class="flex-1 overflow-y-auto divide-y"></div>
 </aside>
+<!-- Settings Modal -->
+<div id="settingsModal" class="hidden fixed inset-0 z-50">
+  <div class="absolute inset-0 bg-black/30"></div>
+  <div class="absolute inset-x-0 top-12 mx-auto w-full max-w-md px-4">
+    <div class="rounded-2xl bg-white shadow-xl border border-gray-200 overflow-hidden">
+      <div class="px-4 py-3 border-b text-sm font-semibold flex items-center justify-between"><span>Assistant Settings</span><button id="closeSettings" class="p-1 rounded hover:bg-gray-100" aria-label="Close"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
+      <form id="settingsForm" class="text-sm">
+        <div class="border-b flex text-sm font-medium"><button type="button" id="tabModel" class="flex-1 py-2 px-3 text-center border-b-2 border-black">Model & Sampling</button><button type="button" id="tabPrompt" class="flex-1 py-2 px-3 text-center border-b-2 border-transparent hover:border-gray-300">System Prompt</button></div>
+        <div id="panelModel" class="p-4 space-y-4">
+          <div><label class="block text-gray-700 font-medium mb-1">Model name</label><input id="set_model" type="text" class="w-full rounded-xl border border-gray-300 px-3 py-2" placeholder="openai/gpt-4o"/></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-gray-700 font-medium mb-1">Temperature <span class="text-gray-400">(0–2)</span></label><input id="set_temperature" type="number" min="0" max="2" step="0.1" class="w-full rounded-xl border border-gray-300 px-3 py-2" placeholder="1.0"/><p class="mt-1 text-xs text-gray-500">Variety. Lower = predictable.</p></div>
+            <div><label class="block text-gray-700 font-medium mb-1">Top P <span class="text-gray-400">(0–1)</span></label><input id="set_top_p" type="number" min="0" max="1" step="0.01" class="w-full rounded-xl border border-gray-300 px-3 py-2" placeholder="1.0"/><p class="mt-1 text-xs text-gray-500">Nucleus sampling.</p></div>
+            <div><label class="block text-gray-700 font-medium mb-1">Top K</label><input id="set_top_k" type="number" min="0" step="1" class="w-full rounded-xl border border-gray-300 px-3 py-2" placeholder="0"/><p class="mt-1 text-xs text-gray-500">Token shortlist size.</p></div>
+            <div><label class="block text-gray-700 font-medium mb-1">Frequency Penalty <span class="text-gray-400">(-2–2)</span></label><input id="set_frequency_penalty" type="number" min="-2" max="2" step="0.1" class="w-full rounded-xl border border-gray-300 px-3 py-2" placeholder="0.0"/><p class="mt-1 text-xs text-gray-500">Discourage repeats by count.</p></div>
+            <div><label class="block text-gray-700 font-medium mb-1">Presence Penalty <span class="text-gray-400">(-2–2)</span></label><input id="set_presence_penalty" type="number" min="-2" max="2" step="0.1" class="w-full rounded-xl border border-gray-300 px-3 py-2" placeholder="0.0"/><p class="mt-1 text-xs text-gray-500">Discourage seen tokens.</p></div>
+            <div><label class="block text-gray-700 font-medium mb-1">Repetition Penalty <span class="text-gray-400">(0–2)</span></label><input id="set_repetition_penalty" type="number" min="0" max="2" step="0.1" class="w-full rounded-xl border border-gray-300 px-3 py-2" placeholder="1.0"/><p class="mt-1 text-xs text-gray-500">Reduce verbatim echoes.</p></div>
+            <div><label class="block text-gray-700 font-medium mb-1">Min P <span class="text-gray-400">(0–1)</span></label><input id="set_min_p" type="number" min="0" max="1" step="0.01" class="w-full rounded-xl border border-gray-300 px-3 py-2" placeholder="0.0"/><p class="mt-1 text-xs text-gray-500">Minimum token prob vs best.</p></div>
+            <div><label class="block text-gray-700 font-medium mb-1">Top A <span class="text-gray-400">(0–1)</span></label><input id="set_top_a" type="number" min="0" max="1" step="0.01" class="w-full rounded-xl border border-gray-300 px-3 py-2" placeholder="0.0"/><p class="mt-1 text-xs text-gray-500">Adaptive nucleus filter.</p></div>
+          </div>
+        </div>
+        <div id="panelPrompt" class="p-4 space-y-4 hidden">
+          <div><label class="block text-gray-700 font-medium mb-1">System Prompt</label><textarea id="set_system_prompt" rows="8" class="w-full rounded-xl border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/20" placeholder="Enter a system prompt to guide the assistant"></textarea><p class="mt-1 text-xs text-gray-500">Saved per assistant.</p></div>
+        </div>
+        <div class="flex items-center justify-between gap-2 px-4 py-3 border-t">
+          <button type="button" id="deleteAssistantBtn" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-red-200 text-red-700 hover:bg-red-50"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6m-9 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>Delete assistant</span></button>
+          <div class="flex items-center justify-end gap-2"><button type="button" id="cancelSettings" class="px-3 py-2 rounded-xl border bg-white hover:bg-gray-50">Cancel</button><button type="submit" class="px-3 py-2 rounded-xl bg-black text-white hover:bg-black/90">Save</button></div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 <script>
 const DEFAULT_MODEL='openai/gpt-4o',DEFAULT_API_KEY='';
-const el=Object.fromEntries(['chat','messages','composer','input','sendBtn','settingsBtnTop','sidebar','sidebarOverlay','sidebarBtn','assistantList','newAssistantBtn','historyBtn','historyPanel','historyOverlay','historyList','closeHistory'].map(id=>[id,document.getElementById(id)]));
+const el=Object.fromEntries(['chat','messages','composer','input','sendBtn','settingsBtnTop','settingsModal','settingsForm','closeSettings','cancelSettings','tabModel','tabPrompt','panelModel','panelPrompt','set_model','set_temperature','set_top_p','set_top_k','set_frequency_penalty','set_presence_penalty','set_repetition_penalty','set_min_p','set_top_a','set_system_prompt','deleteAssistantBtn','sidebar','sidebarOverlay','sidebarBtn','assistantList','newAssistantBtn','historyBtn','historyPanel','historyOverlay','historyList','closeHistory'].map(id=>[id,document.getElementById(id)]));
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v)),num=(v,d)=>v==null||v===''||isNaN(+v)?d:+v,int=(v,d)=>v==null||v===''||isNaN(parseInt(v))?d:parseInt(v),gid=()=>Math.random().toString(36).slice(2,9);
 const globalStore={get apiKey(){return localStorage.getItem('openrouter_api_key')||DEFAULT_API_KEY||''},set apiKey(v){localStorage.setItem('openrouter_api_key',v||'')}};
 const as={key:'assistants_v1',activeKey:'active_assistant_id',load(){try{return JSON.parse(localStorage.getItem(this.key)||'[]')}catch{return[]}},save(list){localStorage.setItem(this.key,JSON.stringify(list||[]))},getActiveId(){return localStorage.getItem(this.activeKey)||null},setActiveId(id){localStorage.setItem(this.activeKey,id||'')}};
@@ -69,7 +96,7 @@ const getActive=()=>assistants.find(a=>a.id===as.getActiveId())||assistants[0],s
 const store=new Proxy({},{get(_,p){if(p==='apiKey')return globalStore.apiKey;const a=getActive();if(p==='model')return a.settings.model;if(p in a.settings)return a.settings[p];if(p==='system_prompt')return a.settings.system_prompt},set(_,p,v){if(p==='apiKey'){globalStore.apiKey=v;return true}const i=assistants.findIndex(a=>a.id===getActive().id);if(i>=0){if(p==='model')assistants[i].settings.model=v||DEFAULT_MODEL;else if(p==='system_prompt')assistants[i].settings.system_prompt=v||'';else assistants[i].settings[p]=v;as.save(assistants);return true}return false}});
 const state={messages:[],busy:false,controller:null,currentThreadId:null};
 const getModelShort=()=>{const m=store.model||'';return m.includes('/')?m.split('/').pop():m};
-function reflectActiveAssistant(){const a=getActive();el.settingsBtnTop.title=`Settings — ${a.name}`}
+function reflectActiveAssistant(){const a=getActive();el.settingsBtnTop.title=`Settings — ${a.name}`;if(window.lucide)lucide.createIcons()}
 function renderSidebar(){const activeId=as.getActiveId();el.assistantList.innerHTML=assistants.map(a=>`<button data-asst-id="${a.id}" class="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 ${a.id===activeId?'bg-gray-100':''}"><span class="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center">🤖</span><span class="truncate">${a.name}</span></button>`).join('')}
 function enhanceCodeBlocks(root){root.querySelectorAll('pre>code').forEach(code=>{const pre=code.parentElement;pre.classList.add('relative','rounded-xl','border','border-gray-200');if(!pre.querySelector('.copy-btn')){const btn=document.createElement('button');btn.className='copy-btn';btn.textContent='Copy';btn.addEventListener('click',async e=>{e.stopPropagation();try{await navigator.clipboard.writeText(code.innerText);btn.textContent='Copied';setTimeout(()=>btn.textContent='Copy',1200)}catch{}});pre.appendChild(btn)}if(window.hljs)hljs.highlightElement(code)});}
 const md=window.markdownit({html:false,linkify:true,typographer:true,breaks:true});
@@ -102,13 +129,27 @@ if(menuBtn){const id=menuBtn.getAttribute('data-thread-menu'),th=threads.find(t=
 el.composer.addEventListener('submit',async e=>{e.preventDefault();if(state.busy)return;const text=el.input.value.trim();if(!text)return;await ensureThreadOnFirstUser(text);el.input.value='';el.input.style.height='auto';addMessage('user',text);state.busy=true;setBtnStop();const assistantBubble=addAssistantBubbleStreaming();let buf='';await askOpenRouterStreaming((delta,done)=>{buf+=delta;renderMarkdown(assistantBubble,buf);if(done){setBtnSend();state.busy=false;state.messages.push({role:'assistant',content:buf});persistThread();queueMicrotask(()=>el.chat.scrollTo({top:el.chat.scrollHeight,behavior:'smooth'}))}})});
 el.messages.addEventListener('click',e=>{if(e.target.closest('.msg-avatar'))openSidebar()});
 el.input.addEventListener('input',()=>{el.input.style.height='auto';el.input.style.height=Math.min(el.input.scrollHeight,160)+'px'});
-function localDemoReply(prompt){const tips=['Tip: open the sidebar → Account & Backup to set your OpenRouter API key.','Click 🤖 to change model & sampling.','New chats are stateless here—no history is kept.'],tip=tips[Math.floor(Math.random()*tips.length)],mirrored=prompt.split(/\s+/).slice(0,24).join(' ');return `Local demo mode. You said: "${mirrored}"\n\n${tip}`}
-function reflectActiveAssistant(){const a=getActive();el.settingsBtnTop.title=`Settings — ${a.name}`}
-function renderSidebar(){const activeId=as.getActiveId();el.assistantList.innerHTML=assistants.map(a=>`<button data-asst-id=\"${a.id}\" class=\"w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 ${a.id===activeId?'bg-gray-100':''}\"><span class=\"h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center\">🤖</span><span class=\"truncate\">${a.name}</span></button>`).join('')}
-function clearChat(){state.messages=[];el.messages.innerHTML=''}
-function openSidebar(){el.sidebar.classList.remove('-translate-x-full');el.sidebarOverlay.classList.remove('hidden')}function closeSidebar(){el.sidebar.classList.add('-translate-x-full');el.sidebarOverlay.classList.add('hidden')}
-el.sidebarBtn.addEventListener('click',openSidebar);el.sidebarOverlay.addEventListener('click',()=>{closeSidebar();closeHistory()});
-async function init(){await idb.open();renderSidebar();reflectActiveAssistant();clearChat();renderHistory()}init()
+// Settings wiring
+function openSettings(){const a=getActive(),s=a.settings;el.set_model.value=s.model;el.set_temperature.value=s.temperature;el.set_top_p.value=s.top_p;el.set_top_k.value=s.top_k;el.set_frequency_penalty.value=s.frequency_penalty;el.set_presence_penalty.value=s.presence_penalty;el.set_repetition_penalty.value=s.repetition_penalty;el.set_min_p.value=s.min_p;el.set_top_a.value=s.top_a;el.set_system_prompt.value=s.system_prompt;showModelTab();el.settingsModal.classList.remove('hidden')}
+function closeSettings(){el.settingsModal.classList.add('hidden')}
+function showModelTab(){el.tabModel.classList.add('border-black');el.tabPrompt.classList.remove('border-black');el.panelModel.classList.remove('hidden');el.panelPrompt.classList.add('hidden')}
+function showPromptTab(){el.tabPrompt.classList.add('border-black');el.tabModel.classList.remove('border-black');el.panelPrompt.classList.remove('hidden');el.panelModel.classList.add('hidden')}
+el.settingsBtnTop.addEventListener('click',openSettings);
+el.closeSettings.addEventListener('click',closeSettings);
+el.cancelSettings.addEventListener('click',closeSettings);
+el.settingsModal.addEventListener('click',e=>{if(e.target===el.settingsModal||e.target.classList.contains('bg-black/30'))closeSettings()});
+el.tabModel.addEventListener('click',showModelTab);
+el.tabPrompt.addEventListener('click',showPromptTab);
+el.settingsForm.addEventListener('submit',e=>{e.preventDefault();const a=getActive(),s=a.settings;s.model=(el.set_model.value||DEFAULT_MODEL).trim();s.temperature=clamp(num(el.set_temperature.value,1.0),0,2);s.top_p=clamp(num(el.set_top_p.value,1.0),0,1);s.top_k=Math.max(0,int(el.set_top_k.value,0));s.frequency_penalty=clamp(num(el.set_frequency_penalty.value,0.0),-2,2);s.presence_penalty=clamp(num(el.set_presence_penalty.value,0.0),-2,2);s.repetition_penalty=clamp(num(el.set_repetition_penalty.value,1.0),0,2);s.min_p=clamp(num(el.set_min_p.value,0.0),0,1);s.top_a=clamp(num(el.set_top_a.value,0.0),0,1);s.system_prompt=el.set_system_prompt.value.trim();as.save(assistants);closeSettings();reflectActiveAssistant()});
+el.deleteAssistantBtn.addEventListener('click',()=>{const activeId=as.getActiveId(),active=getActive(),name=active?.name||'this assistant';if(!confirm(`Delete "${name}"?`))return;assistants=assistants.filter(a=>a.id!==activeId);as.save(assistants);if(assistants.length===0){const def=createDefaultAssistant();assistants=[def];as.save(assistants);as.setActiveId(def.id)}else{as.setActiveId(assistants[0].id)}renderSidebar();reflectActiveAssistant();clearChat();closeSettings()});
+// Assistant sidebar interactions
+el.newAssistantBtn.addEventListener('click',()=>{const name=prompt('Name your assistant:');if(!name)return;const id=gid();assistants.unshift({id,name:name.trim(),settings:{model:DEFAULT_MODEL,temperature:1,top_p:1,top_k:0,frequency_penalty:0,presence_penalty:0,repetition_penalty:1,min_p:0,top_a:0,system_prompt:''}});as.save(assistants);as.setActiveId(id);renderSidebar();reflectActiveAssistant();clearChat();closeSidebar()});
+el.assistantList.addEventListener('click',e=>{const btn=e.target.closest('[data-asst-id]');if(!btn)return;const id=btn.getAttribute('data-asst-id');if(id){as.setActiveId(id);renderSidebar();reflectActiveAssistant();closeSidebar()}});
+// History
+function openHistory(){el.historyPanel.classList.remove('translate-x-full');el.historyOverlay.classList.remove('hidden');renderHistory()}
+function closeHistory(){el.historyPanel.classList.add('translate-x-full');el.historyOverlay.classList.add('hidden')}
+el.historyBtn.addEventListener('click',openHistory);el.historyOverlay.addEventListener('click',closeHistory);el.closeHistory.addEventListener('click',closeHistory);
+async function init(){await idb.open();renderSidebar();reflectActiveAssistant();clearChat();renderHistory();if(window.lucide)lucide.createIcons()}init()
 </script>
 </body>
 </html>
