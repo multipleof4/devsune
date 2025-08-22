@@ -33,9 +33,9 @@
 <main id="chat" class="flex-1 overflow-y-auto no-scrollbar"><div id="messages" class="mx-auto w-full max-w-none px-0 py-4 sm:py-6 space-y-4" hx-on="click: if(event.target.closest('.msg-avatar')){document.getElementById('sidebar').classList.remove('-translate-x-full');document.getElementById('sidebarOverlay').classList.remove('hidden')}"></div><div class="h-24"></div></main>
 <footer id="footer" class="sticky bottom-0 z-10 bg-gradient-to-t from-white via-white/95 to-white/40 pt-2 pb-[calc(12px+var(--safe-bottom))] border-t border-gray-200">
   <div class="mx-auto w-full max-w-none px-0">
-    <form id="composer" class="group relative flex items-start gap-2 px-3">
+    <form id="composer" class="group relative flex items-center gap-2 px-3">
       <textarea id="input" rows="1" placeholder="Send a message" spellcheck="false" autocapitalize="none" autocomplete="off" autocorrect="off" inputmode="text" enterkeyhint="enter" class="flex-1 resize-none rounded-2xl border-none bg-white px-3 py-2 text-[14px] leading-6 placeholder:text-gray-400 focus:outline-none focus:ring-0 max-h-52 overflow-y-auto min-h-[96px]"></textarea>
-      <div class="flex flex-col gap-2 self-center justify-center">
+      <div class="flex flex-col gap-2 self-stretch justify-center">
         <button id="sendBtn" type="submit" aria-label="Send" class="shrink-0 rounded-2xl bg-black text-white h-10 w-10 inline-flex items-center justify-center shadow-sm hover:bg-black/90 active:scale-[.98] transition"><i data-lucide="sparkles" class="h-5 w-5"></i></button>
         <button id="attachBtn" type="button" aria-label="Attach" class="relative shrink-0 rounded-2xl bg-gray-100 text-gray-900 h-10 w-10 inline-flex items-center justify-center shadow-sm hover:bg-gray-200 active:scale-[.98] transition"><i data-lucide="paperclip" class="h-5 w-5"></i><span id="attachBadge" class="hidden absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-black text-white text-[10px] leading-4 text-center"></span></button>
       </div>
