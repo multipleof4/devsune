@@ -96,10 +96,10 @@
           </div>
           <div><label class="block text-gray-700 font-medium mb-1">Reasoning Effort</label><select id="set_reasoning_effort" class="w-full rounded-xl border border-gray-300 px-3 py-2"><option value="default">Default</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select><p class="mt-1 text-xs text-gray-500">Used only if supported by the model. (Default = Omitted)</p></div>
         </div>
-        <div id="panelPrompt" class="px-4 pb-4 pt-0 space-y-4 hidden">
+        <div id="panelPrompt" class="p-4 space-y-4 hidden">
           <div><label class="block text-gray-700 font-medium mb-1">System Prompt</label><textarea id="set_system_prompt" rows="8" class="w-full rounded-xl border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black/20" placeholder="Enter a system prompt to guide the sune"></textarea><p class="mt-1 text-xs text-gray-500">Saved per sune.</p></div>
         </div>
-        <div id="panelScript" class="p-4 space-y-3 hidden">
+        <div id="panelScript" class="px-4 pb-4 pt-0 space-y-3 hidden">
           <div class="border-b flex text-xs font-medium"><button type="button" id="subTabHTML" class="flex-1 py-2 px-3 text-center border-b-2 border-black">HTML</button><button type="button" id="subTabJS" class="flex-1 py-2 px-3 text-center border-b-2 border-transparent hover:border-gray-300">JavaScript</button></div>
           <div id="panelHTML"><pre id="htmlEditor" class="w-full h-[45vh] p-3 rounded-xl border border-gray-300 bg-white overflow-auto font-mono text-[12px] leading-5" contenteditable="plaintext-only" spellcheck="false"></pre><p class="mt-1 text-xs text-gray-500">Saved per sune.</p></div>
           <div id="panelJS" class="hidden"><pre id="scriptEditor" class="w-full h-[45vh] p-3 rounded-xl border border-gray-300 bg-white overflow-auto font-mono text-[12px] leading-5" contenteditable="plaintext-only" spellcheck="false"></pre><p class="mt-1 text-xs text-gray-500">Sunes can function call exported JS functions. (WIP)</p></div>
