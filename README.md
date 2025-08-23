@@ -2,7 +2,7 @@
 
 ![Sunes](./docs/appstore_content/screenshot6.jpg)
 
-![Setting](./docs/appstore_content/screenshot3.jpg)t
+![Setting](./docs/appstore_content/screenshot3.jpg)
 
 💠 New! 
 
