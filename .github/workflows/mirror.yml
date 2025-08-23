@@ -4,7 +4,7 @@ on:
       repo:
         required: true
         type: string
-        default: multipleof4/sune
+        default: multipleof4/
 permissions:
   contents: write
 jobs:
