@@ -44,4 +44,7 @@ const html = createHtmlPlugin({
   }
 })
 
-export default defineConfig({ build: { outDir: 'docs', minify: false }, plugins: [pwa, html] })
+export default defineConfig({
+  build: { outDir: 'docs', minify: false, emptyOutDir: true },
+  plugins: [pwa, html]
+})
