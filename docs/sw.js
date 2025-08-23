@@ -1,94 +1,140 @@
-const CH = "chat-stream-v1";
-let bc, streams = /* @__PURE__ */ new Map();
-self.addEventListener("install", (e) => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
-function send(m) {
-  try {
-    bc || (bc = new BroadcastChannel(CH));
-    bc.postMessage(m);
-  } catch {
+self.importScripts("https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js");
+localforage.config({ name: "localforage", storeName: "keyvaluepairs" });
+const TKEY = "threads_v1";
+const now = () => Date.now();
+const gid = () => Math.random().toString(36).slice(2, 9);
+const titleFrom = (t) => String(t || "").replace(/\s+/g, " ").trim().slice(0, 60) || "Untitled";
+async function loadThreads() {
+  const v = await localforage.getItem(TKEY);
+  return Array.isArray(v) ? v : [];
+}
+async function saveThreads(v) {
+  await localforage.setItem(TKEY, v);
+}
+async function pickLatestThread(threads) {
+  if (!threads.length) return null;
+  let best = threads[0], bu = +best.updatedAt || 0;
+  for (const t of threads) {
+    const u = +t.updatedAt || 0;
+    if (u > bu) {
+      best = t;
+      bu = u;
+    }
   }
+  return best;
 }
-function hint(x) {
-  x = String(x || "");
-  if (/401|unauthorized/i.test(x)) return "Unauthorized (check API key).";
-  if (/429|rate/i.test(x)) return "Rate limited (slow down or upgrade).";
-  if (/403|forbidden|access/i.test(x)) return "Forbidden (model or key scope).";
-  return "Request failed.";
+async function ensureThreadForWrite(reqMeta) {
+  let threads = await loadThreads();
+  let th = await pickLatestThread(threads);
+  if (!th) {
+    const id = gid();
+    const firstUser = (reqMeta.messages || []).find((m) => m && m.role === "user")?.content || "";
+    th = { id, title: titleFrom(firstUser), pinned: false, updatedAt: now(), messages: [] };
+    threads.unshift(th);
+    await saveThreads(threads);
+  }
+  return th.id;
 }
-async function start(id, p) {
-  bc || (bc = new BroadcastChannel(CH));
-  const body = typeof p.body === "string" ? p.body : JSON.stringify(p.body || {}), ctrl = new AbortController();
-  let done = false, buf = "";
-  streams.set(id, { ctrl, buf: () => buf, done: () => done });
-  try {
-    const r = await fetch(p.url, { method: "POST", headers: p.headers || {}, body, signal: ctrl.signal });
-    if (!r.ok) throw new Error(await r.text().catch(() => "") || "HTTP " + r.status);
-    const rd = r.body.getReader(), dc = new TextDecoder("utf-8");
-    let acc = "";
-    const doneOnce = () => {
-      if (done) return;
-      done = true;
-      send({ t: "done", id });
-    };
-    for (; ; ) {
-      const { value, done: d } = await rd.read();
-      if (d) break;
-      acc += dc.decode(value, { stream: true });
-      let i;
-      while ((i = acc.indexOf("\n\n")) !== -1) {
-        const raw = acc.slice(0, i).trim();
-        acc = acc.slice(i + 2);
-        if (!raw || !raw.startsWith("data:")) continue;
-        const data = raw.slice(5).trim();
+async function appendAssistantPlaceholder(threadId, meta) {
+  let threads = await loadThreads();
+  let th = threads.find((t) => t.id === threadId);
+  if (!th) {
+    th = { id: threadId, title: "Untitled", pinned: false, updatedAt: now(), messages: [] };
+    threads.unshift(th);
+  }
+  const mid = "sw_" + gid();
+  const msg = { id: mid, role: "assistant", content: "", sune_name: "", model: meta?.model || "", avatar: "", sw: true };
+  th.messages = [...Array.isArray(th.messages) ? th.messages : [], msg];
+  th.updatedAt = now();
+  await saveThreads(threads);
+  return mid;
+}
+async function updateAssistantContent(threadId, mid, content) {
+  let threads = await loadThreads();
+  const th = threads.find((t) => t.id === threadId);
+  if (!th) return;
+  const i = (th.messages || []).findIndex((m) => m && m.id === mid);
+  if (i < 0) return;
+  th.messages[i].content = content;
+  th.updatedAt = now();
+  await saveThreads(threads);
+}
+async function parseAndPersist(stream, threadId, mid) {
+  const reader = stream.getReader();
+  const dec = new TextDecoder("utf-8");
+  let buf = "", full = "", lastWrite = 0;
+  const flush = async (force = false) => {
+    const t = Date.now();
+    if (force || t - lastWrite > 250) {
+      await updateAssistantContent(threadId, mid, full);
+      lastWrite = t;
+    }
+  };
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf("\n\n")) !== -1) {
+      const chunk = buf.slice(0, idx).trim();
+      buf = buf.slice(idx + 2);
+      if (!chunk) continue;
+      if (chunk.startsWith("data:")) {
+        const data = chunk.slice(5).trim();
         if (data === "[DONE]") {
-          doneOnce();
-          continue;
+          await flush(true);
+          return;
         }
         try {
-          const j = JSON.parse(data);
-          const delta = j.choices?.[0]?.delta?.content ?? "";
-          if (delta) {
-            buf += delta;
-            send({ t: "delta", id, data: delta });
+          const json = JSON.parse(data);
+          const d = json && json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content || "";
+          if (d) {
+            full += d;
+            await flush(false);
           }
-          const fin = j.choices?.[0]?.finish_reason;
-          if (fin) doneOnce();
-        } catch {
+        } catch (_) {
         }
       }
     }
-    doneOnce();
-  } catch (e) {
-    const aborted = e?.name === "AbortError" || /abort/i.test(String(e?.message || ""));
-    if (aborted) send({ t: "done", id, aborted: true });
-    else send({ t: "error", id, hint: hint(e?.message) });
-  } finally {
-    streams.delete(id);
   }
+  await flush(true);
 }
-function stop(id) {
-  const s = streams.get(id);
-  if (!s) return;
+async function handleOpenRouterEvent(event) {
+  const req = event.request;
+  const url = new URL(req.url);
+  const isTarget = url.hostname === "openrouter.ai" && /\/api\/v1\/chat\/completions$/.test(url.pathname);
+  if (!isTarget) return fetch(req);
+  let reqMeta = {};
   try {
-    s.ctrl.abort();
-  } catch {
-  } finally {
-    streams.delete(id);
+    const t = await req.clone().text();
+    reqMeta = JSON.parse(t || "{}");
+  } catch (_) {
   }
+  if (!reqMeta || !reqMeta.stream) {
+    return fetch(req);
+  }
+  const res = await fetch(req);
+  if (!res.body) return res;
+  const [toClient, toTap] = res.body.tee();
+  event.waitUntil((async () => {
+    try {
+      const msgs = Array.isArray(reqMeta.messages) ? reqMeta.messages : [];
+      const meta = { sune_name: "", model: reqMeta.model || "", avatar: "" };
+      const threadId = await ensureThreadForWrite({ messages: msgs });
+      const mid = await appendAssistantPlaceholder(threadId, meta);
+      await parseAndPersist(toTap, threadId, mid);
+    } catch (_) {
+    }
+  })());
+  const headers = new Headers(res.headers);
+  return new Response(toClient, { status: res.status, statusText: res.statusText, headers });
 }
-function replay(id, offset = 0) {
-  const s = streams.get(id);
-  if (!s) return;
-  const cur = s.buf(), remain = cur.slice(Math.max(0, offset));
-  if (remain) send({ t: "delta", id, data: remain });
-  if (s.done()) send({ t: "done", id });
-}
-bc = new BroadcastChannel(CH);
-bc.onmessage = (e) => {
-  const m = e.data || {};
-  if (m.t === "hello") send({ t: "hello-ack" });
-  else if (m.t === "start" && m.id && m.payload) start(m.id, m.payload);
-  else if (m.t === "stop" && m.id) stop(m.id);
-  else if (m.t === "replay" && m.id) replay(m.id, m.offset | 0);
-};
+self.addEventListener("install", (e) => {
+  self.skipWaiting();
+});
+self.addEventListener("activate", (e) => {
+  e.waitUntil(self.clients.claim());
+});
+self.addEventListener("fetch", (e) => {
+  e.respondWith(handleOpenRouterEvent(e));
+});
