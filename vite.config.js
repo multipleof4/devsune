@@ -10,7 +10,7 @@ const pwa = VitePWA({
   devOptions: { enabled: true },
   injectManifest: {
   injectionPoint: undefined
-  }
+  },
   manifest: {
     id: 'https://sune.planetrenox.com/',
     name: 'Sune',
