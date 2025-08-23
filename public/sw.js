@@ -1,42 +1,43 @@
-const V='2'
-const send=m=>self.clients.matchAll({type:'window',includeUncontrolled:true}).then(cs=>cs.forEach(c=>c.postMessage(m)))
+/* sw.js */
+self.addEventListener('install',e=>e.waitUntil(self.skipWaiting()))
+self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()))
 
-self.addEventListener('install',e=>{self.skipWaiting()})
-self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim().then(()=>send({type:'SW_ACTIVE',v:V,ts:Date.now()})))})
+const ch=new BroadcastChannel('llm-stream')
+const streams=new Map()
+const send=m=>ch.postMessage(m)
+const parseSSE=async(res,emit,signal)=>{
+  const r=res.body.getReader(),d=new TextDecoder('utf-8');let buf=''
+  const doneOnce=()=>emit('',true)
+  for(;;){const {value,done}=await r.read();if(done)break;buf+=d.decode(value,{stream:true});let i
+    while((i=buf.indexOf('\n\n'))!==-1){const chunk=buf.slice(0,i).trim();buf=buf.slice(i+2)
+      if(!chunk)continue
+      if(chunk.startsWith('data:')){const data=chunk.slice(5).trim();if(data==='[DONE]'){doneOnce();continue}
+        try{const j=JSON.parse(data);emit(j.choices?.[0]?.delta?.content??'',!!j.choices?.[0]?.finish_reason)}catch{}}
+    }}
+  doneOnce()
+}
 
-const ORIGINS=['openrouter.ai']
-const isTarget=req=>{const u=new URL(req.url);return ORIGINS.some(h=>u.hostname.endsWith(h))&&req.method==='POST'}
-const wantsStream=async req=>{try{return /"stream"\s*:\s*true/i.test(await req.clone().text())}catch{return false}}
+const openStream=(id,req)=>{
+  const ac=new AbortController();let off=0,buf='',done=false
+  const record={ctrl:ac,get off(){return off},get buf(){return buf},get done(){return done}}
+  streams.set(id,record)
+  const run=(async()=>{try{
+    const res=await fetch(req.url,{method:req.method||'POST',headers:req.headers||{},body:JSON.stringify(req.body||{}),signal:ac.signal})
+    if(!res.ok)throw new Error((await res.text().catch(()=>''))||('HTTP '+res.status))
+    await parseSSE(res,(delta,isDone)=>{if(delta){buf+=delta;off=buf.length;send({id,delta,off})}if(isDone&&!done){done=true;send({id,done:true,off})}},ac.signal)
+  }catch(e){send({id,error:String(e?.message||e)})}
+  finally{if(!done){done=true;send({id,done:true,off})}streams.delete(id)}})()
+  return run
+}
 
-self.addEventListener('fetch',e=>{
-  const req=e.request
-  const nav=req.mode==='navigate'
-  if(nav) return
-  if(!isTarget(req)) return
-  e.respondWith((async()=>{
-    if(!(await wantsStream(req))) return fetch(req)
-    const netRes=await fetch(req)
-    const reader=netRes.body?.getReader()
-    if(!reader) return netRes
-    send({type:'SW_STREAM_START',url:req.url,ts:Date.now()})
-    let done=false,bytes=0,buf=[],bufBytes=0,waiter=null,notify=null
-    const MAX=2*1024*1024,LOW=1*1024*1024
-    const pump=(async()=>{for(;;){const r=await reader.read();if(r.done){done=true;break}const chunk=r.value;buf.push(chunk);bufBytes+=chunk.byteLength||chunk.length;bytes+=chunk.byteLength||chunk.length;send({type:'SW_STREAM_BYTES',n:bytes})
-      if(bufBytes>MAX) await new Promise(r=>{notify=r;waiter=r})}})()
-    e.waitUntil(pump)
-    const stream=new ReadableStream({
-      start(c){const loop=async()=>{for(;;){if(buf.length){const x=buf.shift();bufBytes-=x.byteLength||x.length;c.enqueue(x);if(notify&&bufBytes<=LOW){const n=notify;notify=null;n()}}
-        else if(done){c.close();send({type:'SW_STREAM_END',bytes});break}
-        else await new Promise(r=>setTimeout(r,30))}}
-        loop()},
-      cancel(){try{reader.cancel()}catch{}}
-    })
-    const h=new Headers(netRes.headers);h.delete('content-length')
-    return new Response(stream,{status:netRes.status,statusText:netRes.statusText,headers:h})
-  })())
-})
+const cancelStream=id=>{const r=streams.get(id);if(r)try{r.ctrl.abort()}catch{}}
+const replayStream=(id,from=0)=>{const r=streams.get(id);if(!r)return;const s=r.buf||'',start=Math.max(0,from),CH=16384;for(let i=start;i<s.length;i+=CH){const b=s.slice(i,Math.min(s.length,i+CH));send({id,delta:b,off:i+b.length})}}
 
 self.addEventListener('message',e=>{
-  const m=e.data||{}
-  if(m&&m.type==='PING'){(e.source||null)?.postMessage({type:'PONG',v:V,ts:Date.now()})||send({type:'PONG',v:V,ts:Date.now()})}
+  const msg=e.data||{},port=e.ports?.[0];const ok=d=>port&&port.postMessage(Object.assign({ok:true},d||{}));const err=m=>port&&port.postMessage({error:String(m||'error')})
+  if(!msg.type)return
+  if(msg.type==='hello')return ok({stream:true})
+  if(msg.type==='stream-openrouter'){const {id,req}=msg.data||{};if(!id||!req)return err('bad args');const p=openStream(id,req);e.waitUntil(p);return ok({})}
+  if(msg.type==='stream-cancel'){const {id}=msg.data||{};if(!id)return err('bad args');cancelStream(id);return ok({})}
+  if(msg.type==='stream-replay'){const {id,from}=msg.data||{};if(!id)return err('bad args');replayStream(id,from|0);return ok({})}
 })
