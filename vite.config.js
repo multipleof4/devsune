@@ -3,14 +3,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { createHtmlPlugin } from 'vite-plugin-html'
 
 const pwa = VitePWA({
-  strategies: 'injectManifest',
-  filename: 'sw.js',
-  injectRegister: 'auto',
   registerType: 'autoUpdate',
-  devOptions: { enabled: true },
-  injectManifest: {
-  injectionPoint: undefined
-  },
   manifest: {
     id: 'https://sune.planetrenox.com/',
     name: 'Sune',
@@ -43,7 +36,4 @@ const html = createHtmlPlugin({
   }
 })
 
-export default defineConfig({
-  build: { outDir: 'docs', minify: false, emptyOutDir: true },
-  plugins: [pwa, html]
-})
+export default defineConfig({ build: { outDir: 'docs', minify: false }, plugins: [pwa, html] })

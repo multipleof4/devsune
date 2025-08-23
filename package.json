@@ -11,7 +11,6 @@
   "devDependencies": {
     "vite": "7.1.*",
     "vite-plugin-pwa": "1.0.*",
-    "vite-plugin-html": "3.2.*",
-    "workbox-precaching": "7.3.*"
+    "vite-plugin-html": "3.2.*"
   }
 }
