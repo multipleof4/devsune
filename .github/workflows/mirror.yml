@@ -1,0 +1,9 @@
+on: [workflow_dispatch]
+permissions: write-all
+jobs:
+  sync:
+    uses: multipleof4/.actions/.github/workflows/git-mirror.yml@master
+    with:
+      repo: user/repo
+      ref: master
+      message: 'This build was committed by a bot.'
