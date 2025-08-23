@@ -3,7 +3,12 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { createHtmlPlugin } from 'vite-plugin-html'
 
 const pwa = VitePWA({
+  strategies: 'injectManifest',
+  srcDir: 'src',
+  filename: 'sw.js',
+  injectRegister: 'auto',
   registerType: 'autoUpdate',
+  devOptions: { enabled: true },
   manifest: {
     id: 'https://sune.planetrenox.com/',
     name: 'Sune',
