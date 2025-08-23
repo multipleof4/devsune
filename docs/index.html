@@ -21,7 +21,32 @@
   <link rel="icon" type="image/avif" href="https://sune.planetrenox.com/✺.avif">
   <script src="https://cdn.jsdelivr.net/npm/tiny-ripple@0.2.0"></script>
   <style>:root{--safe-bottom:env(safe-area-inset-bottom)}::-webkit-scrollbar{height:8px;width:8px}::-webkit-scrollbar-thumb{background:#e5e7eb;border-radius:999px}.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}</style>
-  <script>(function(){function n(t){let e=document.getElementById("sw-banner");if(!e){e=document.createElement("div");e.id="sw-banner";Object.assign(e.style,{position:"fixed",zIndex:"99999",top:"12px",right:"12px",maxWidth:"90vw",background:"#111",color:"#fff",padding:"10px 12px",borderRadius:"12px",boxShadow:"0 6px 18px rgba(0,0,0,.3)",font:"14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif"});document.body.appendChild(e)}e.textContent=String(t);clearTimeout(e.__to);e.__to=setTimeout(()=>{e&&e.parentNode&&e.parentNode.removeChild(e)},3000)}if(!("serviceWorker"in navigator)){n("Service Worker not supported");return}navigator.serviceWorker.addEventListener("message",e=>{let d=e.data;try{d=typeof d==="object"?JSON.stringify(d):String(d)}catch{}n(d)});navigator.serviceWorker.ready.then(r=>{if(r.active)r.active.postMessage({type:"PING",ts:Date.now()})});})();</script>
+  <script>(function(){
+  function r(f){if(document.readyState!=='loading')f();else document.addEventListener('DOMContentLoaded',f)}
+  function overlay(){
+    var o=document.getElementById('sw-overlay'); if(o) return o
+    o=document.createElement('div'); o.id='sw-overlay'
+    Object.assign(o.style,{position:'fixed',top:'0',left:'0',right:'0',padding:'20px 24px',zIndex:'2147483647',background:'linear-gradient(90deg,#ff0044,#ff8a00)',color:'#fff',textAlign:'center',font:'700 22px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',letterSpacing:'0.5px',boxShadow:'0 12px 28px rgba(0,0,0,.35)'})
+    var x=document.createElement('button'); x.textContent='×'; Object.assign(x.style,{position:'absolute',top:'8px',right:'12px',width:'36px',height:'36px',border:'0',borderRadius:'10px',background:'rgba(255,255,255,.15)',color:'#fff',fontSize:'24px',cursor:'pointer'})
+    x.onclick=function(){o.remove()}
+    var s=document.createElement('span'); s.id='sw-overlay-text'; s.style.display='inline-block'; s.style.padding='4px 10px'; s.style.borderRadius='8px'; s.style.background='rgba(0,0,0,.25)'
+    o.appendChild(s); o.appendChild(x); document.body.appendChild(o); return o
+  }
+  function setStatus(kind,msg){
+    var o=overlay(), t=o.querySelector('#sw-overlay-text')
+    if(kind==='ok'){o.style.background='linear-gradient(90deg,#00c853,#00e5ff)'; t.textContent=msg||'SERVICE WORKER: ACTIVE'}
+    else if(kind==='fail'){o.style.background='linear-gradient(90deg,#c62828,#ad1457)'; t.textContent=msg||'SERVICE WORKER: NOT RUNNING'}
+    else {o.style.background='linear-gradient(90deg,#ff9800,#ffc107)'; t.textContent=msg||'SERVICE WORKER: WAITING'}
+  }
+  r(function(){
+    setStatus('wait','SERVICE WORKER: WAITING')
+    if(!('serviceWorker' in navigator)){setStatus('fail','NO SERVICE WORKER SUPPORT'); alert('NO SERVICE WORKER SUPPORT'); return}
+    var done=false
+    navigator.serviceWorker.addEventListener('message',function(e){done=true; setStatus('ok','SERVICE WORKER: ACTIVE')})
+    navigator.serviceWorker.ready.then(function(reg){if(reg&&reg.active) reg.active.postMessage({type:'PING',ts:Date.now()})})
+    setTimeout(function(){if(!done){setStatus('fail','SERVICE WORKER: NOT RUNNING'); alert('SERVICE WORKER NOT RUNNING')}},3000)
+  })
+})();</script>
 <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
 <body class="bg-white text-gray-900 selection:bg-black/10" hx-on="click: if(!document.getElementById('historyMenu').contains(event.target)&&!event.target.closest('[data-thread-menu]')) hideHistoryMenu(); if(!document.getElementById('suneMenu').contains(event.target)&&!event.target.closest('[data-sune-menu]')) hideSuneMenu(); if(!document.getElementById('userMenu').contains(event.target)&&!document.getElementById('userMenuBtn').contains(event.target)) document.getElementById('userMenu').classList.add('hidden')">
 <div class="flex flex-col h-dvh max-h-dvh">
