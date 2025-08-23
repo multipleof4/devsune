@@ -3,18 +3,13 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { createHtmlPlugin } from 'vite-plugin-html'
 
 const pwa = VitePWA({
-  base: '/devsune/',
-  strategies: 'injectManifest',
   registerType: 'autoUpdate',
-  injectManifest: { injectionPoint: undefined },
-  devOptions: { enabled: true },
   manifest: {
-    id: '/devsune/',
+    id: 'https://sune.planetrenox.com/',
     name: 'Sune',
     short_name: 'Sune',
     description: 'OpenRouter GUI Frontend',
-    start_url: '/devsune/',
-    scope: '/devsune/',
+    start_url: 'https://sune.planetrenox.com/',
     display: 'standalone',
     orientation: 'portrait',
     theme_color: '#FFFFFF',
@@ -41,8 +36,4 @@ const html = createHtmlPlugin({
   }
 })
 
-export default defineConfig({
-  base: '/devsune/',
-  build: { outDir: 'docs', minify: false },
-  plugins: [pwa, html]
-})
+export default defineConfig({ build: { outDir: 'docs', minify: false }, plugins: [pwa, html] })
