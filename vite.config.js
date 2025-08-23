@@ -32,39 +32,66 @@ const html = createHtmlPlugin({
   minify: false,
   inject: {
     tags: [
-      { tag: 'meta', attrs: { charset: 'utf-8' }, injectTo: 'head' },
-      { tag: 'title', children: 'Sune', injectTo: 'head' },
-      { tag: 'link', attrs: { rel: 'icon', type: 'image/avif', href: 'https://sune.planetrenox.com/✺.avif' }, injectTo: 'head' },
-      { tag: 'style', children: ':root{--safe-bottom:env(safe-area-inset-bottom)}::-webkit-scrollbar{height:8px;width:8px}::-webkit-scrollbar-thumb{background:#e5e7eb;border-radius:999px}.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}', injectTo: 'head' },
       {
         tag: 'script',
         children: `(function(){
-  function ready(f){if(document.readyState!=='loading')f();else document.addEventListener('DOMContentLoaded',f)}
-  function overlay(){
-    var o=document.getElementById('sw-overlay'); if(o) return o
-    o=document.createElement('div'); o.id='sw-overlay'
-    Object.assign(o.style,{position:'fixed',top:'0',left:'0',right:'0',padding:'18px 56px 18px 20px',zIndex:'2147483647',background:'linear-gradient(90deg,#ff9800,#ffc107)',color:'#fff',textAlign:'center',font:'700 18px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',letterSpacing:'0.4px',boxShadow:'0 8px 24px rgba(0,0,0,.25)'})
-    var text=document.createElement('span'); text.id='sw-overlay-text'
-    var x=document.createElement('button'); x.type='button'; x.textContent='×'
-    Object.assign(x.style,{position:'absolute',top:'8px',right:'12px',width:'36px',height:'36px',border:'0',borderRadius:'10px',background:'rgba(255,255,255,.18)',color:'#fff',fontSize:'24px',cursor:'pointer'})
-    x.addEventListener('click',function(){o.remove();sessionStorage.setItem('swOverlayClosed','1')})
-    o.appendChild(text); o.appendChild(x); document.body.appendChild(o); return o
+  function h(v){try{return JSON.parse(v)}catch{return null}}
+  function isOR(url){try{var u=new URL(url,location.href);return /(^|\\.)openrouter\\.ai$/i.test(u.hostname)&&/\\/api\\/v1\\/chat\\/completions$/.test(u.pathname)}catch{return false}}
+  function hasStream(body){if(body==null)return false;try{if(typeof body==='string')return /"stream"\\s*:\\s*true/i.test(body);if(body instanceof Blob)return false;return false}catch{return false}}
+  function ensureHeaders(hdrs){if(hdrs instanceof Headers){return hdrs}var out=new Headers();if(Array.isArray(hdrs)){hdrs.forEach(function(p){out.append(p[0],p[1])});return out}if(hdrs&&typeof hdrs==='object'){Object.keys(hdrs).forEach(function(k){out.append(k,hdrs[k])});return out}return out}
+  function uid(){return 'swr-'+Math.random().toString(36).slice(2,10)}
+  var ofetch=window.fetch
+  window.fetch=function(input,init){
+    try{
+      var url=typeof input==='string'?input:(input&&input.url)||''
+      var m=((init&&init.method)||(input&&input.method)||'GET').toUpperCase()
+      if(m==='POST'&&isOR(url)){
+        var body=(init&&init.body)||null
+        if(hasStream(body)){
+          var id=uid()
+          var hdrs=ensureHeaders(init&&init.headers)
+          hdrs.set('x-swr-id',id)
+          init=Object.assign({},init,{headers:hdrs})
+          sessionStorage.setItem('swr:current',id)
+          sessionStorage.setItem('swr:seq:'+id,'0')
+        }
+      }
+    }catch{}
+    return ofetch.apply(this,arguments)
   }
-  function setStatus(kind,msg){
-    var o=overlay(), t=o.querySelector('#sw-overlay-text')
-    if(kind==='ok'){o.style.background='linear-gradient(90deg,#00c853,#00e5ff)'; t.textContent=msg||'SERVICE WORKER: ACTIVE'}
-    else if(kind==='fail'){o.style.background='linear-gradient(90deg,#c62828,#ad1457)'; t.textContent=msg||'SERVICE WORKER: NOT RUNNING'}
-    else {o.style.background='linear-gradient(90deg,#ff9800,#ffc107)'; t.textContent=msg||'SERVICE WORKER: WAITING'}
+  function applyDelta(id,seq,delta){
+    try{
+      var list=document.querySelectorAll('.msg-bubble'); if(!list.length)return
+      var el=list[list.length-1]
+      var cur=el.__swr_text||''
+      el.__swr_text=cur+String(delta||'')
+      if(window.markdownit){var md=window.markdownit({html:false,linkify:true,typographer:true,breaks:true});el.innerHTML=md.render(el.__swr_text)}
+      else{el.textContent=el.__swr_text}
+      sessionStorage.setItem('swr:seq:'+id,String(seq))
+    }catch{}
   }
-  ready(function(){
-    if(sessionStorage.getItem('swOverlayClosed')==='1') return
-    setStatus('wait','SERVICE WORKER: WAITING')
-    if(!('serviceWorker' in navigator)){setStatus('fail','NO SERVICE WORKER SUPPORT'); alert('NO SERVICE WORKER SUPPORT'); return}
-    var ok=false
-    navigator.serviceWorker.addEventListener('message',function(){ok=true; setStatus('ok','SERVICE WORKER: ACTIVE')})
-    navigator.serviceWorker.ready.then(function(reg){if(reg&&reg.active) reg.active.postMessage({type:'PING',ts:Date.now()})})
-    setTimeout(function(){if(!ok){setStatus('fail','SERVICE WORKER: NOT RUNNING'); alert('SERVICE WORKER NOT RUNNING')}},3000)
-  })
+  function onMsg(e){
+    var m=e&&e.data||{}
+    if(!m||!m.type)return
+    if(m.type==='SW_DELTA'){var id=m.id,seq=m.seq,delta=m.delta;if(id&&delta!=null)applyDelta(id,seq,delta)}
+    else if(m.type==='SW_DONE'){var id=m.id;if(id){sessionStorage.removeItem('swr:current')}}
+  }
+  if(navigator.serviceWorker){
+    navigator.serviceWorker.addEventListener('message',onMsg)
+    function replay(){
+      try{
+        var id=sessionStorage.getItem('swr:current')
+        if(!id)return
+        var seq=sessionStorage.getItem('swr:seq:'+id)||'0'
+        var ctrl=navigator.serviceWorker.controller
+        if(ctrl) ctrl.postMessage({type:'SW_REPLAY',id,fromSeq:+seq})
+      }catch{}
+    }
+    if(document.visibilityState==='visible'){
+      navigator.serviceWorker.ready.then(function(){setTimeout(replay,0)})
+    }
+    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible') replay()},{passive:true})
+  }
 })();`,
         injectTo: 'head'
       }
