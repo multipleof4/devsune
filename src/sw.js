@@ -1,3 +1,5 @@
+// src/sw.js
+self.__WB_MANIFEST;
 self.addEventListener("install",()=>{})
 self.addEventListener("activate",()=>{})
 
