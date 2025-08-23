@@ -3,16 +3,18 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { createHtmlPlugin } from 'vite-plugin-html'
 
 const pwa = VitePWA({
+  base: '/devsune/',
   strategies: 'injectManifest',
   registerType: 'autoUpdate',
   injectManifest: { injectionPoint: undefined },
   devOptions: { enabled: true },
   manifest: {
-    id: 'https://sune.planetrenox.com/',
+    id: '/devsune/',
     name: 'Sune',
     short_name: 'Sune',
     description: 'OpenRouter GUI Frontend',
-    start_url: 'https://sune.planetrenox.com/',
+    start_url: '/devsune/',
+    scope: '/devsune/',
     display: 'standalone',
     orientation: 'portrait',
     theme_color: '#FFFFFF',
@@ -42,10 +44,10 @@ const html = createHtmlPlugin({
   function overlay(){
     var o=document.getElementById('sw-overlay'); if(o) return o
     o=document.createElement('div'); o.id='sw-overlay'
-    Object.assign(o.style,{position:'fixed',top:'0',left:'0',right:'0',padding:'20px 24px',zIndex:'2147483647',background:'linear-gradient(90deg,#ff0044,#ff8a00)',color:'#fff',textAlign:'center',font:'700 22px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',letterSpacing:'0.5px',boxShadow:'0 12px 28px rgba(0,0,0,.35)'})
+    Object.assign(o.style,{position:'fixed',top:'0',left:'0',right:'0',padding:'20px 24px',zIndex:'2147483647',background:'linear-gradient(90deg,#ff9800,#ffc107)',color:'#fff',textAlign:'center',font:'700 22px/1.2 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',letterSpacing:'0.5px',boxShadow:'0 12px 28px rgba(0,0,0,.35)'})
+    var s=document.createElement('span'); s.id='sw-overlay-text'; s.style.display='inline-block'; s.style.padding='4px 10px'; s.style.borderRadius='8px'; s.style.background='rgba(0,0,0,.25)'
     var x=document.createElement('button'); x.textContent='×'; Object.assign(x.style,{position:'absolute',top:'8px',right:'12px',width:'36px',height:'36px',border:'0',borderRadius:'10px',background:'rgba(255,255,255,.15)',color:'#fff',fontSize:'24px',cursor:'pointer'})
     x.onclick=function(){o.remove()}
-    var s=document.createElement('span'); s.id='sw-overlay-text'; s.style.display='inline-block'; s.style.padding='4px 10px'; s.style.borderRadius='8px'; s.style.background='rgba(0,0,0,.25)'
     o.appendChild(s); o.appendChild(x); document.body.appendChild(o); return o
   }
   function setStatus(kind,msg){
@@ -58,7 +60,7 @@ const html = createHtmlPlugin({
     setStatus('wait','SERVICE WORKER: WAITING')
     if(!('serviceWorker' in navigator)){setStatus('fail','NO SERVICE WORKER SUPPORT'); alert('NO SERVICE WORKER SUPPORT'); return}
     var done=false
-    navigator.serviceWorker.addEventListener('message',function(e){done=true; setStatus('ok','SERVICE WORKER: ACTIVE')})
+    navigator.serviceWorker.addEventListener('message',function(){done=true; setStatus('ok','SERVICE WORKER: ACTIVE')})
     navigator.serviceWorker.ready.then(function(reg){if(reg&&reg.active) reg.active.postMessage({type:'PING',ts:Date.now()})})
     setTimeout(function(){if(!done){setStatus('fail','SERVICE WORKER: NOT RUNNING'); alert('SERVICE WORKER NOT RUNNING')}},3000)
   })
@@ -70,6 +72,7 @@ const html = createHtmlPlugin({
 })
 
 export default defineConfig({
+  base: '/devsune/',
   build: { outDir: 'docs', minify: false },
   plugins: [pwa, html]
 })
