@@ -1,9 +1,13 @@
-on: [workflow_dispatch]
-permissions: write-all
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        required: true
+        type: string
+permissions:
+  contents: write
 jobs:
-  sync:
-    uses: multipleof4/.actions/.github/workflows/git-mirror.yml@master
+  mirror:
+    uses: multipleof4/.actions/.github/workflows/repo-mirror.yml@master
     with:
-      repo: user/repo
-      ref: master
-      message: 'This build was committed by a bot.'
+      repo: ${{ inputs.repo }}
