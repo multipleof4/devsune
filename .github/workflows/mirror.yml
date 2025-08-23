@@ -2,8 +2,8 @@ on:
   workflow_dispatch:
     inputs:
       repo:
-        required: true
         type: string
+        default: multipleof4/sune
 permissions:
   contents: write
 jobs:
