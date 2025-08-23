@@ -8,6 +8,9 @@ const pwa = VitePWA({
   injectRegister: 'auto',
   registerType: 'autoUpdate',
   devOptions: { enabled: true },
+  injectManifest: {
+  injectionPoint: undefined
+  }
   manifest: {
     id: 'https://sune.planetrenox.com/',
     name: 'Sune',
