@@ -1,114 +1,94 @@
-self.addEventListener("install", (e) => e.waitUntil(self.skipWaiting()));
+const CH = "chat-stream-v1";
+let bc, streams = /* @__PURE__ */ new Map();
+self.addEventListener("install", (e) => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
-const ch = new BroadcastChannel("llm-stream");
-const streams = /* @__PURE__ */ new Map();
-const send = (m) => ch.postMessage(m);
-const parseSSE = async (res, emit, signal) => {
-  const r = res.body.getReader(), d = new TextDecoder("utf-8");
-  let buf = "";
-  const doneOnce = () => emit("", true);
-  for (; ; ) {
-    const { value, done } = await r.read();
-    if (done) break;
-    buf += d.decode(value, { stream: true });
-    let i;
-    while ((i = buf.indexOf("\n\n")) !== -1) {
-      const chunk = buf.slice(0, i).trim();
-      buf = buf.slice(i + 2);
-      if (!chunk) continue;
-      if (chunk.startsWith("data:")) {
-        const data = chunk.slice(5).trim();
+function send(m) {
+  try {
+    bc || (bc = new BroadcastChannel(CH));
+    bc.postMessage(m);
+  } catch {
+  }
+}
+function hint(x) {
+  x = String(x || "");
+  if (/401|unauthorized/i.test(x)) return "Unauthorized (check API key).";
+  if (/429|rate/i.test(x)) return "Rate limited (slow down or upgrade).";
+  if (/403|forbidden|access/i.test(x)) return "Forbidden (model or key scope).";
+  return "Request failed.";
+}
+async function start(id, p) {
+  bc || (bc = new BroadcastChannel(CH));
+  const body = typeof p.body === "string" ? p.body : JSON.stringify(p.body || {}), ctrl = new AbortController();
+  let done = false, buf = "";
+  streams.set(id, { ctrl, buf: () => buf, done: () => done });
+  try {
+    const r = await fetch(p.url, { method: "POST", headers: p.headers || {}, body, signal: ctrl.signal });
+    if (!r.ok) throw new Error(await r.text().catch(() => "") || "HTTP " + r.status);
+    const rd = r.body.getReader(), dc = new TextDecoder("utf-8");
+    let acc = "";
+    const doneOnce = () => {
+      if (done) return;
+      done = true;
+      send({ t: "done", id });
+    };
+    for (; ; ) {
+      const { value, done: d } = await rd.read();
+      if (d) break;
+      acc += dc.decode(value, { stream: true });
+      let i;
+      while ((i = acc.indexOf("\n\n")) !== -1) {
+        const raw = acc.slice(0, i).trim();
+        acc = acc.slice(i + 2);
+        if (!raw || !raw.startsWith("data:")) continue;
+        const data = raw.slice(5).trim();
         if (data === "[DONE]") {
           doneOnce();
           continue;
         }
         try {
           const j = JSON.parse(data);
-          emit(j.choices?.[0]?.delta?.content ?? "", !!j.choices?.[0]?.finish_reason);
+          const delta = j.choices?.[0]?.delta?.content ?? "";
+          if (delta) {
+            buf += delta;
+            send({ t: "delta", id, data: delta });
+          }
+          const fin = j.choices?.[0]?.finish_reason;
+          if (fin) doneOnce();
         } catch {
         }
       }
     }
+    doneOnce();
+  } catch (e) {
+    const aborted = e?.name === "AbortError" || /abort/i.test(String(e?.message || ""));
+    if (aborted) send({ t: "done", id, aborted: true });
+    else send({ t: "error", id, hint: hint(e?.message) });
+  } finally {
+    streams.delete(id);
   }
-  doneOnce();
-};
-const openStream = (id, req) => {
-  const ac = new AbortController();
-  let off = 0, buf = "", done = false;
-  const record = { ctrl: ac, get off() {
-    return off;
-  }, get buf() {
-    return buf;
-  }, get done() {
-    return done;
-  } };
-  streams.set(id, record);
-  const run = (async () => {
-    try {
-      const res = await fetch(req.url, { method: req.method || "POST", headers: req.headers || {}, body: JSON.stringify(req.body || {}), signal: ac.signal });
-      if (!res.ok) throw new Error(await res.text().catch(() => "") || "HTTP " + res.status);
-      await parseSSE(res, (delta, isDone) => {
-        if (delta) {
-          buf += delta;
-          off = buf.length;
-          send({ id, delta, off });
-        }
-        if (isDone && !done) {
-          done = true;
-          send({ id, done: true, off });
-        }
-      }, ac.signal);
-    } catch (e) {
-      send({ id, error: String(e?.message || e) });
-    } finally {
-      if (!done) {
-        done = true;
-        send({ id, done: true, off });
-      }
-      streams.delete(id);
-    }
-  })();
-  return run;
-};
-const cancelStream = (id) => {
-  const r = streams.get(id);
-  if (r) try {
-    r.ctrl.abort();
+}
+function stop(id) {
+  const s = streams.get(id);
+  if (!s) return;
+  try {
+    s.ctrl.abort();
   } catch {
+  } finally {
+    streams.delete(id);
   }
+}
+function replay(id, offset = 0) {
+  const s = streams.get(id);
+  if (!s) return;
+  const cur = s.buf(), remain = cur.slice(Math.max(0, offset));
+  if (remain) send({ t: "delta", id, data: remain });
+  if (s.done()) send({ t: "done", id });
+}
+bc = new BroadcastChannel(CH);
+bc.onmessage = (e) => {
+  const m = e.data || {};
+  if (m.t === "hello") send({ t: "hello-ack" });
+  else if (m.t === "start" && m.id && m.payload) start(m.id, m.payload);
+  else if (m.t === "stop" && m.id) stop(m.id);
+  else if (m.t === "replay" && m.id) replay(m.id, m.offset | 0);
 };
-const replayStream = (id, from = 0) => {
-  const r = streams.get(id);
-  if (!r) return;
-  const s = r.buf || "", start = Math.max(0, from), CH = 16384;
-  for (let i = start; i < s.length; i += CH) {
-    const b = s.slice(i, Math.min(s.length, i + CH));
-    send({ id, delta: b, off: i + b.length });
-  }
-};
-self.addEventListener("message", (e) => {
-  const msg = e.data || {}, port = e.ports?.[0];
-  const ok = (d) => port && port.postMessage(Object.assign({ ok: true }, d || {}));
-  const err = (m) => port && port.postMessage({ error: String(m) });
-  if (!msg.type) return;
-  if (msg.type === "hello") return ok({ stream: true });
-  if (msg.type === "stream-openrouter") {
-    const { id, req } = msg.data || {};
-    if (!id || !req) return err("bad args");
-    const p = openStream(id, req);
-    e.waitUntil(p);
-    return ok({});
-  }
-  if (msg.type === "stream-cancel") {
-    const { id } = msg.data || {};
-    if (!id) return err("bad args");
-    cancelStream(id);
-    return ok({});
-  }
-  if (msg.type === "stream-replay") {
-    const { id, from } = msg.data || {};
-    if (!id) return err("bad args");
-    replayStream(id, from | 0);
-    return ok({});
-  }
-});
