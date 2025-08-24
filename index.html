@@ -215,53 +215,76 @@ const WS_URL = "wss://orp.awww.workers.dev/ws";
 
 class SingleRunWS {
   constructor({ payload, onDelta }) {
-    this.payload=payload; this.onDelta=onDelta;
-    this.ws=null; this.lastSeq=-1;
-    this.done=false; this.manual=false;
-    this.timer=null; this.backoff=300;
+    this.payload = payload;               // { apiKey, model, messages }
+    this.onDelta = onDelta;
+    this.ws = null;
+    this.lastSeq = -1;
+    this.done = false;
+    this.manual = false;
+    this.timer = null;
+    this.backoff = 300;
+    this.rid = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
-  start(){ this.#connect("begin"); }
+  start(){ this.connect("begin"); }
   abort(){
-    this.manual=true; this.done=true;
-    try{ this.ws?.send(JSON.stringify({type:"stop"})) }catch{}
-    try{ this.ws?.close() }catch{}
+    this.manual = true; this.done = true;
+    try { this.ws?.send(JSON.stringify({ type: "stop", rid: this.rid })); } catch {}
+    try { this.ws?.close(); } catch {}
     clearTimeout(this.timer);
   }
-  #connect(mode){
-    if(this.done)return;
-    this.ws=new WebSocket(WS_URL);
-    this.ws.onopen=()=>{
-      if(mode==="begin") this.ws.send(JSON.stringify({type:"begin",...this.payload,after:this.lastSeq}));
-      else this.ws.send(JSON.stringify({type:"resume",after:this.lastSeq}));
+  connect(mode){
+    if (this.done) return;
+    this.ws = new WebSocket(WS_URL);
+    this.ws.onopen = () => {
+      if (mode === "begin") {
+        this.ws.send(JSON.stringify({ type: "begin", rid: this.rid, ...this.payload, after: this.lastSeq }));
+      } else {
+        this.ws.send(JSON.stringify({ type: "resume", rid: this.rid, after: this.lastSeq }));
+      }
     };
-    this.ws.onmessage=e=>{
-      let m; try{m=JSON.parse(e.data)}catch{return};
-      if(m.type==="delta"&&m.seq>this.lastSeq){this.lastSeq=m.seq;this.onDelta(m.text,false);}
-      else if(m.type==="done"){this.done=true;this.onDelta("",true);this.#cleanup();}
-      else if(m.type==="err"){this.done=true;this.onDelta("\\n\\n"+(m.message||"error"),true);this.#cleanup();}
+    this.ws.onmessage = (e) => {
+      let m; try { m = JSON.parse(e.data); } catch { return; }
+      if (m.type === "delta" && typeof m.seq === "number" && m.seq > this.lastSeq) {
+        this.lastSeq = m.seq;
+        this.onDelta(m.text, false);
+      } else if (m.type === "done") {
+        this.done = true;
+        this.onDelta("", true);
+        this.cleanup();
+      } else if (m.type === "err") {
+        // stale_run/busy/etc. end this runner gracefully
+        this.done = true;
+        this.onDelta("\n\n" + (m.message || "error"), true);
+        this.cleanup();
+      }
     };
-    this.ws.onclose=()=>{ if(!this.done&&!this.manual) this.#schedule(); };
+    this.ws.onclose = () => { if (!this.done && !this.manual) this.schedule(); };
+    this.ws.onerror = () => {};
   }
-  #schedule(){
+  schedule(){
     clearTimeout(this.timer);
-    if(this.manual||this.done)return;
-    this.timer=setTimeout(()=>{this.#connect("resume"); this.backoff=Math.min(this.backoff*1.5,5000)},this.backoff);
+    if (this.manual || this.done) return;
+    this.timer = setTimeout(() => {
+      this.connect("resume");
+      this.backoff = Math.min(this.backoff * 1.5, 5000);
+    }, this.backoff);
   }
-  #cleanup(){ clearTimeout(this.timer); try{this.ws?.close()}catch{} }
+  cleanup(){ clearTimeout(this.timer); try { this.ws?.close(); } catch {} }
 }
 
-async function askViaDOStreaming(onDelta){
-  const apiKey=store.apiKey, model=store.model;
-  const msgs=[]; if(store.system_prompt) msgs.push({role:"system",content:[{type:"text",text:store.system_prompt}]});
-  msgs.push(...state.messages.filter(m=>m.role!=="system").map(m=>({role:m.role,content:m.content})));
+async function askViaDOStreaming(onDelta) {
+  const apiKey = store.apiKey;
+  const model  = store.model;
+  const msgs   = [];
+  if (store.system_prompt) msgs.push({ role: "system", content: [{ type: "text", text: store.system_prompt }] });
+  msgs.push(...state.messages.filter(m => m.role !== "system").map(m => ({ role: m.role, content: m.content })));
 
-  const runner=new SingleRunWS({payload:{apiKey,model,messages:msgs},onDelta});
-  state.controller={abort:()=>runner.abort()};
+  const runner = new SingleRunWS({ payload: { apiKey, model, messages: msgs }, onDelta });
+  state.controller = { abort: () => runner.abort() };
   runner.start();
-  return {ok:true};
+  return { ok: true };
 }
-
-askOpenRouterStreaming=askViaDOStreaming;
+askOpenRouterStreaming = askViaDOStreaming;
 </script>
 </body>
 </html>
