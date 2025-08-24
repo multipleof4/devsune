@@ -210,5 +210,79 @@ async function init(){threads=await tload();await renderHistory();renderSidebar(
 window.addEventListener('resize',()=>{hideHistoryMenu();hideSuneMenu()})
 init()
 </script>
+<script>
+const WS_URL = "wss://awww.workers.dev/ws";  // fixed for your Worker domain
+
+class SingleRunWS {
+  constructor({ payload, onDelta }) {
+    this.payload = payload;
+    this.onDelta = onDelta;
+    this.ws = null;
+    this.lastSeq = -1;
+    this.done = false;
+    this._vis = this._onVisibility.bind(this);
+  }
+  start() {
+    this._connect("begin");
+    document.addEventListener("visibilitychange", this._vis, { passive: true });
+  }
+  abort() {
+    this.done = true;
+    try { this.ws?.close(); } catch {}
+    document.removeEventListener("visibilitychange", this._vis);
+  }
+  _onVisibility() {
+    if (this.done) return;
+    if (document.visibilityState === "hidden") {
+      try { this.ws?.close(); } catch {}
+    } else if (!this.ws || this.ws.readyState > 1) {
+      this._connect("resume");
+    }
+  }
+  _connect(mode) {
+    if (this.done) return;
+    this.ws = new WebSocket(WS_URL);
+    this.ws.onopen = () => {
+      if (mode === "begin") {
+        this.ws.send(JSON.stringify({ type: "begin", ...this.payload, after: this.lastSeq }));
+      } else {
+        this.ws.send(JSON.stringify({ type: "resume", after: this.lastSeq }));
+      }
+    };
+    this.ws.onmessage = (e) => {
+      let m; try { m = JSON.parse(e.data); } catch { return; }
+      if (m.type === "delta" && typeof m.seq === "number" && m.seq > this.lastSeq) {
+        this.lastSeq = m.seq;
+        this.onDelta(m.text, false);
+      } else if (m.type === "done") {
+        this.done = true;
+        this.onDelta("", true);
+        this.abort();
+      } else if (m.type === "err") {
+        this.done = true;
+        this.onDelta(`\n\n${m.message || "error"}`, true);
+        this.abort();
+      }
+    };
+  }
+}
+
+async function askViaDOStreaming(onDelta) {
+  const apiKey = store.apiKey;
+  const model  = store.model;
+  const msgs   = [];
+  if (store.system_prompt) msgs.push({ role: "system", content: [{ type: "text", text: store.system_prompt }] });
+  msgs.push(...state.messages.filter(m => m.role !== "system").map(m => ({ role: m.role, content: m.content })));
+
+  const runner = new SingleRunWS({
+    payload: { apiKey, model, messages: msgs },
+    onDelta
+  });
+
+  state.controller = { abort: () => runner.abort() };
+  runner.start();
+  return { ok: true };
+}
+</script>
 </body>
 </html>
