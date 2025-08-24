@@ -283,6 +283,8 @@ async function askViaDOStreaming(onDelta) {
   runner.start();
   return { ok: true };
 }
+  // keep your existing call site unchanged
+  askOpenRouterStreaming = askViaDOStreaming;
 </script>
 </body>
 </html>
