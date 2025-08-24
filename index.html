@@ -215,84 +215,53 @@ const WS_URL = "wss://orp.awww.workers.dev/ws";
 
 class SingleRunWS {
   constructor({ payload, onDelta }) {
-    this.payload = payload;
-    this.onDelta = onDelta;
-    this.ws = null;
-    this.lastSeq = -1;
-    this.done = false;
-    this._vis = this._onVisibility.bind(this);
+    this.payload=payload; this.onDelta=onDelta;
+    this.ws=null; this.lastSeq=-1;
+    this.done=false; this.manual=false;
+    this.timer=null; this.backoff=300;
   }
-  start() {
-    window.SUNE.log("WS start");
-    this._connect("begin");
-    document.addEventListener("visibilitychange", this._vis, { passive: true });
+  start(){ this.#connect("begin"); }
+  abort(){
+    this.manual=true; this.done=true;
+    try{ this.ws?.send(JSON.stringify({type:"stop"})) }catch{}
+    try{ this.ws?.close() }catch{}
+    clearTimeout(this.timer);
   }
-  abort() {
-    window.SUNE.log("WS abort");
-    this.done = true;
-    try { this.ws?.close(); } catch {}
-    document.removeEventListener("visibilitychange", this._vis);
-  }
-  _onVisibility() {
-    window.SUNE.log(`WS visibility: ${document.visibilityState}`);
-    if (this.done) return;
-    if (document.visibilityState === "hidden") {
-      try { this.ws?.close(); } catch {}
-    } else if (!this.ws || this.ws.readyState > 1) {
-      this._connect("resume");
-    }
-  }
-  _connect(mode) {
-    if (this.done) return;
-    window.SUNE.log(`WS connect [${mode}]`);
-    this.ws = new WebSocket(WS_URL);
-    this.ws.onopen = () => {
-      window.SUNE.log("WS open");
-      if (mode === "begin") {
-        this.ws.send(JSON.stringify({ type: "begin", ...this.payload, after: this.lastSeq }));
-      } else {
-        this.ws.send(JSON.stringify({ type: "resume", after: this.lastSeq }));
-      }
+  #connect(mode){
+    if(this.done)return;
+    this.ws=new WebSocket(WS_URL);
+    this.ws.onopen=()=>{
+      if(mode==="begin") this.ws.send(JSON.stringify({type:"begin",...this.payload,after:this.lastSeq}));
+      else this.ws.send(JSON.stringify({type:"resume",after:this.lastSeq}));
     };
-    this.ws.onmessage = (e) => {
-     // window.SUNE.log(`WS msg: ${e.data.slice(0,80)}`);
-      let m; try { m = JSON.parse(e.data); } catch { return; }
-      if (m.type === "delta" && typeof m.seq === "number" && m.seq > this.lastSeq) {
-        this.lastSeq = m.seq;
-        this.onDelta(m.text, false);
-      } else if (m.type === "done") {
-        this.done = true;
-        this.onDelta("", true);
-        this.abort();
-      } else if (m.type === "err") {
-        this.done = true;
-        this.onDelta(`\n\n${m.message || "error"}`, true);
-        this.abort();
-      }
+    this.ws.onmessage=e=>{
+      let m; try{m=JSON.parse(e.data)}catch{return};
+      if(m.type==="delta"&&m.seq>this.lastSeq){this.lastSeq=m.seq;this.onDelta(m.text,false);}
+      else if(m.type==="done"){this.done=true;this.onDelta("",true);this.#cleanup();}
+      else if(m.type==="err"){this.done=true;this.onDelta("\\n\\n"+(m.message||"error"),true);this.#cleanup();}
     };
-    this.ws.onerror = (e) => window.SUNE.log("WS error" + (e?.message?": "+e.message:""));
-    this.ws.onclose = () => window.SUNE.log("WS close");
+    this.ws.onclose=()=>{ if(!this.done&&!this.manual) this.#schedule(); };
   }
+  #schedule(){
+    clearTimeout(this.timer);
+    if(this.manual||this.done)return;
+    this.timer=setTimeout(()=>{this.#connect("resume"); this.backoff=Math.min(this.backoff*1.5,5000)},this.backoff);
+  }
+  #cleanup(){ clearTimeout(this.timer); try{this.ws?.close()}catch{} }
 }
 
-async function askViaDOStreaming(onDelta) {
-  const apiKey = store.apiKey;
-  const model  = store.model;
-  const msgs   = [];
-  if (store.system_prompt) msgs.push({ role: "system", content: [{ type: "text", text: store.system_prompt }] });
-  msgs.push(...state.messages.filter(m => m.role !== "system").map(m => ({ role: m.role, content: m.content })));
+async function askViaDOStreaming(onDelta){
+  const apiKey=store.apiKey, model=store.model;
+  const msgs=[]; if(store.system_prompt) msgs.push({role:"system",content:[{type:"text",text:store.system_prompt}]});
+  msgs.push(...state.messages.filter(m=>m.role!=="system").map(m=>({role:m.role,content:m.content})));
 
-  const runner = new SingleRunWS({
-    payload: { apiKey, model, messages: msgs },
-    onDelta
-  });
-
-  state.controller = { abort: () => runner.abort() };
+  const runner=new SingleRunWS({payload:{apiKey,model,messages:msgs},onDelta});
+  state.controller={abort:()=>runner.abort()};
   runner.start();
-  return { ok: true };
+  return {ok:true};
 }
 
-askOpenRouterStreaming = askViaDOStreaming;
+askOpenRouterStreaming=askViaDOStreaming;
 </script>
 </body>
 </html>
