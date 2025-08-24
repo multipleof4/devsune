@@ -255,7 +255,7 @@ class SingleRunWS {
       }
     };
     this.ws.onmessage = (e) => {
-      window.SUNE.log(`WS msg: ${e.data.slice(0,80)}`);
+     // window.SUNE.log(`WS msg: ${e.data.slice(0,80)}`);
       let m; try { m = JSON.parse(e.data); } catch { return; }
       if (m.type === "delta" && typeof m.seq === "number" && m.seq > this.lastSeq) {
         this.lastSeq = m.seq;
