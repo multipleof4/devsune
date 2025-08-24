@@ -211,7 +211,7 @@ window.addEventListener('resize',()=>{hideHistoryMenu();hideSuneMenu()})
 init()
 </script>
 <script>
-const WS_URL = "wss://orp.awww.workers.dev/ws";  // fixed for your Worker domain
+const WS_URL = "wss://orp.awww.workers.dev/ws";
 
 class SingleRunWS {
   constructor({ payload, onDelta }) {
@@ -223,15 +223,18 @@ class SingleRunWS {
     this._vis = this._onVisibility.bind(this);
   }
   start() {
+    window.SUNE.log("WS start");
     this._connect("begin");
     document.addEventListener("visibilitychange", this._vis, { passive: true });
   }
   abort() {
+    window.SUNE.log("WS abort");
     this.done = true;
     try { this.ws?.close(); } catch {}
     document.removeEventListener("visibilitychange", this._vis);
   }
   _onVisibility() {
+    window.SUNE.log(`WS visibility: ${document.visibilityState}`);
     if (this.done) return;
     if (document.visibilityState === "hidden") {
       try { this.ws?.close(); } catch {}
@@ -241,8 +244,10 @@ class SingleRunWS {
   }
   _connect(mode) {
     if (this.done) return;
+    window.SUNE.log(`WS connect [${mode}]`);
     this.ws = new WebSocket(WS_URL);
     this.ws.onopen = () => {
+      window.SUNE.log("WS open");
       if (mode === "begin") {
         this.ws.send(JSON.stringify({ type: "begin", ...this.payload, after: this.lastSeq }));
       } else {
@@ -250,6 +255,7 @@ class SingleRunWS {
       }
     };
     this.ws.onmessage = (e) => {
+      window.SUNE.log(`WS msg: ${e.data.slice(0,80)}`);
       let m; try { m = JSON.parse(e.data); } catch { return; }
       if (m.type === "delta" && typeof m.seq === "number" && m.seq > this.lastSeq) {
         this.lastSeq = m.seq;
@@ -264,6 +270,8 @@ class SingleRunWS {
         this.abort();
       }
     };
+    this.ws.onerror = (e) => window.SUNE.log("WS error" + (e?.message?": "+e.message:""));
+    this.ws.onclose = () => window.SUNE.log("WS close");
   }
 }
 
@@ -283,8 +291,8 @@ async function askViaDOStreaming(onDelta) {
   runner.start();
   return { ok: true };
 }
-  // keep your existing call site unchanged
-  askOpenRouterStreaming = askViaDOStreaming;
+
+askOpenRouterStreaming = askViaDOStreaming;
 </script>
 </body>
 </html>
