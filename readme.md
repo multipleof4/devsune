@@ -1,4 +1,4 @@
-![Main](./docs/appstore_content/screenshot1.jpg)
+.![Main](./docs/appstore_content/screenshot1.jpg)
 
 > Each sune is like a module. You can have many. And share them.
 
