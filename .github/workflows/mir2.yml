@@ -1,0 +1,9 @@
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  mirror:
+    uses: multipleof4/.github/.github/workflows/repo-mirror.yml@master
+    with:
+      repo: multipleof4/sune
