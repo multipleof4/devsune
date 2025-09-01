@@ -99,8 +99,8 @@
         <div id="panelScript" class="p-1 hidden">
           <div class="border-b flex text-xs font-medium"><button type="button" id="htmlTab_index" class="flex-1 py-2 px-3 text-center border-b-2"></button><button type="button" id="htmlTab_extension" class="flex-1 py-2 px-3 text-center border-b-2"></button></div>
           <div class="pt-0">
-            <pre id="htmlEditor" class="w-full h-[50vh] p-3 rounded-xl border border-gray-300 bg-white overflow-auto font-mono text-[12px] leading-5" contenteditable="plaintext-only" spellcheck="false"></pre>
-            <pre id="extensionHtmlEditor" class="w-full h-[50vh] p-3 rounded-xl border border-gray-300 bg-white overflow-auto font-mono text-[12px] leading-5 hidden" contenteditable="plaintext-only" spellcheck="false"></pre>
+            <pre id="htmlEditor" class="w-full h-[25vh] p-3 rounded-xl border border-gray-300 bg-white overflow-auto font-mono text-[12px] leading-5" contenteditable="plaintext-only" spellcheck="false"></pre>
+            <pre id="extensionHtmlEditor" class="w-full h-[25vh] p-3 rounded-xl border border-gray-300 bg-white overflow-auto font-mono text-[12px] leading-5 hidden" contenteditable="plaintext-only" spellcheck="false"></pre>
           </div>
           <div class="mt-2 flex gap-2"><button type="button" id="copyHTML" class="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200">Copy</button><button type="button" id="pasteHTML" class="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200">Paste</button></div>
           <p class="mt-1 text-xs text-gray-500">Scripts also run. extension.html runs after index.html.</p>
@@ -184,7 +184,7 @@ const TKEY='threads_v1',tload=()=>localforage.getItem(TKEY).then(v=>Array.isArra
 const cacheStore=localforage.createInstance({name:'master_cache'});
 async function ensureThreadOnFirstUser(text){let needNew=!state.currentThreadId;if(state.messages.length===0)state.currentThreadId=null;if(state.currentThreadId&&!threads.some(x=>x.id===state.currentThreadId))needNew=true;if(!needNew)return;const id=gid(),now=Date.now(),th={id,title:titleFrom(text),pinned:false,updatedAt:now,messages:[]};state.currentThreadId=id;threads.unshift(th);await tsave(threads);await renderThreads()}
 async function persistThread(full=true){if(!state.currentThreadId)return;let th=threads.find(x=>x.id===state.currentThreadId);if(!th)return;th.messages=[...state.messages];if(full){th.updatedAt=Date.now();th.title=titleFrom(partsToText(th.messages.find(m=>m.role==='user')?.content)||th.title)}await tsave(threads);if(full)await renderThreads()}
-const threadRow=t=>`<div class=\"relative flex items-center gap-2 px-3 py-2 ${t.pinned?'bg-yellow-50':''}\"><button data-open-thread=\"${t.id}\" class=\"flex-1 text-left truncate\">${t.pinned?'📌 ':''}${esc(t.title)}</button><button data-thread-menu=\"${t.id}\" class=\"h-8 w-8 rounded hover:bg-gray-100 flex items-center justify-center\" title=\"More\"><i data-lucide=\"more-horizontal\" class=\"h-4 w-4\"></i></button></div>`
+const threadRow=t=>`<div class=\"relative flex items-center gap-2 px-3 py-2 ${t.pinned?'bg-yellow-50':''}\"><button data-open-thread=\"${t.id}\" class=\"flex-1 text-left truncate\">${t.pinned?'📌 ':''}${esc(t.title)}</button><button data-thread-menu=\"${t.id}\" class=\"h-8 w-8 rounded hover:bg-gray-100 flex items-center justify-center\" title=\"More\"><i data-lucide=\"more-horizontal\" class="h-4 w-4\"></i></button></div>`
 async function renderThreads(){const list=[...threads].sort((a,b)=>(b.pinned-a.pinned)||(b.updatedAt-a.updatedAt));el.threadList.innerHTML=list.map(threadRow).join('');icons()}
 let menuThreadId=null;const hideThreadPopover=()=>{el.threadPopover.classList.add('hidden');menuThreadId=null}
 function showThreadPopover(btn,id){menuThreadId=id;const r=btn.getBoundingClientRect();el.threadPopover.style.top=(r.bottom+4)+'px';el.threadPopover.style.left=Math.min(window.innerWidth-220,r.right-200)+'px';el.threadPopover.classList.remove('hidden');icons()}
